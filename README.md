@@ -2,12 +2,13 @@
 
 A new approach to handling Keybinds
 
-### [Wiki](https://github.com/Drastics-Experiments/SimpleBinds/wiki)
+## Table of Contents
+[Wiki Page](https://github.com/Drastics-Experiments/SimpleBinds/wiki)
 
-## Documentation
+### Documentation
 * Constructors [(→)](https://github.com/Drastics-Experiments/SimpleBinds/wiki/Documentation#constructor)
 * Properties [(→)](https://github.com/Drastics-Experiments/SimpleBinds/wiki/Documentation#properties)
 * Methods [(→)](https://github.com/Drastics-Experiments/SimpleBinds/wiki/Documentation#methods)
 
-## Example Scripts
+### Example Scripts
 * TODO
