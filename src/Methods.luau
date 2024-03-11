@@ -1,3 +1,5 @@
+--> NOTE: This script uses a custom assert function.
+
 local ContextActionService = game:GetService("ContextActionService")
 local InputService = game:GetService("UserInputService")
 
@@ -107,7 +109,7 @@ local function ConnectToDefaultSignal(self: Keybind, SignalType: Types.defaultSi
 	return self
 end
 
-local function ConnectToImportedSignal(self: Keybind, SignalMask: string, SignalType: Types.defaultSignals, InputState: "Begin" | "End")
+local function ConnectToImportedSignal(self: Keybind, SignalMask: string, InputState: "Begin" | "End")
 	assert(self.Enabled == false, "Cannot use :ConnectToImportedSignal() on an enabled keybind.")
 
 	local ImportedSignals = self.Signals.ImportedSignals
@@ -138,10 +140,10 @@ local function Construct(self: Keybind, KeyList: Types.KeyBuilder)
 	if KeyList.CustomSignals then
 		for SignalMask, Args in pairs(KeyList.CustomSignals) do
 			self:ImportSignal(SignalMask, Args.Signal, Args.SimulatedButtons)
-			self:ConnectToImportedSignal(SignalMask, Args.SignalToConnect, Args.InputState)
+			self:ConnectToImportedSignal(SignalMask, Args.InputState)
 		end
 	end
-	
+
 	for Name, Callback in pairs(KeyList.Callbacks) do
 		self:ConnectToDefaultSignal(Name, Callback)
 	end

@@ -9,7 +9,6 @@ export type defaultSignals = "Triggered" | "InputBegan" | "InputEnded"
 type customSignal = {
 	Signal : RBXScriptSignal,
 	SimulatedButtons : { Enum.KeyCode | Enum.UserInputType },
-	SignalToConnect : defaultSignals,
 	InputState : "Begin" | "End"
 }
 

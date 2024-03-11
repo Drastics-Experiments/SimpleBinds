@@ -2,7 +2,7 @@
 
 A new approach to handling Keybinds
 
-## [Wiki](https://github.com/Drastics-Experiments/SimpleBinds/wiki)
+### [Wiki](https://github.com/Drastics-Experiments/SimpleBinds/wiki)
 
 ## Documentation
 * Constructors [(→)](https://github.com/Drastics-Experiments/SimpleBinds/wiki/Documentation#constructor)

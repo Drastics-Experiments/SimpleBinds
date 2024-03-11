@@ -1,5 +1,5 @@
 -- Variables
-local Proxy = require(script.Parent.Proxy)
+local Proxy = require(script.Proxy)
 local Constructor, Signal, Connection = {}, {}, {}
 local Thread, Call
 local threads = {}
