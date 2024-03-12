@@ -3,7 +3,11 @@ local RunService = game:GetService("RunService")
 
 local Template = require(script.Parent.Template)
 local Methods = require(script.Parent.Methods)
+
 type ButtonType = InputObject | Enum.KeyCode | Enum.UserInputType
+
+local BeginState = Enum.UserInputState.Begin
+local EndState = Enum.UserInputState.End
 
 local function UpdatePressedKeys(self: Methods.Keybind, State: Enum.UserInputState, Button: ButtonType)
 	local PressedButtons = self.Binds.PressedButtons
@@ -18,12 +22,12 @@ local function UpdatePressedKeys(self: Methods.Keybind, State: Enum.UserInputSta
 		local IsKeyCode = IndexSearch[Button.KeyCode]
 		local IsUserInputType = IndexSearch[Button.UserInputType]
 		
-		if State == Enum.UserInputState.Begin then
+		if State == BeginState then
 			PlatFormPressed[Button.KeyCode] = IsKeyCode
 			PlatFormPressed[Button.UserInputType] = IsUserInputType
 		end
 		
-		if State == Enum.UserInputState.End then
+		if State == EndState then
 			PlatFormPressed[Button.KeyCode] = nil
 			PlatFormPressed[Button.UserInputType] = nil
 		end
@@ -32,15 +36,14 @@ local function UpdatePressedKeys(self: Methods.Keybind, State: Enum.UserInputSta
 	if typeof(Button) == "EnumItem" then
 		local IsEnumFound = IndexSearch[Button]
 		
-		if State == Enum.UserInputState.Begin then
+		if State == BeginState then
 			PlatFormPressed[Button] = IsEnumFound
 		end
 
-		if State == Enum.UserInputState.End then
+		if State == EndState then
 			PlatFormPressed[Button] = nil
 		end
 	end
-	--print(self)
 end
 
 local function Behavior_Press(self: Methods.Keybind, Args, State: Enum.UserInputState, Button: ButtonType)
@@ -53,31 +56,40 @@ local function Behavior_Press(self: Methods.Keybind, Args, State: Enum.UserInput
 end
 
 local function Behavior_Hold(self: Methods.Keybind, Args, State: Enum.UserInputState, Button: ButtonType)
+	if not self.Enabled then return end
 	UpdatePressedKeys(self, State, Button)
-	
+	local SpecialVars = self.SpecialVars
+
+
+	if SpecialVars.InputProcessed then return end
 	if self:AreEnoughButtonsPressed(Args[2]) then
 		local timer = 0
 		local settings = self.Settings
 		local Default = self.Signals.Default
 		
 		Default.InputBegan:Fire()
-		
+		SpecialVars.InputProcessed = true
+
 		repeat
 			timer += RunService.Heartbeat:Wait()
 		until timer >= settings.Duration or not self:AreEnoughButtonsPressed(Args[2])
 		
 		Default.InputEnded:Fire()
+		SpecialVars.InputProcessed = false
+
 		if not self:AreEnoughButtonsPressed(Args[2]) then return end
 		Default.Triggered:Fire()
 	end
 end
 
 local function Behavior_Toggle(self: Methods.Keybind, Args, State: Enum.UserInputState, Button: ButtonType)
+	if not self.Enabled then return end
 	UpdatePressedKeys(self, State, Button)
+
 	local SpecialVars = self.SpecialVars
 	local Default = self.Signals.Default
 	
-	if self:AreEnoughButtonsPressed(Args[2]) and State == Enum.UserInputState.Begin then
+	if self:AreEnoughButtonsPressed(Args[2]) and State == BeginState then
 		if SpecialVars.InputProcessed then return Enum.ContextActionResult.Pass end
 		
 		SpecialVars.InputProcessed = true
@@ -86,13 +98,14 @@ local function Behavior_Toggle(self: Methods.Keybind, Args, State: Enum.UserInpu
 		return Enum.ContextActionResult.Pass
 	end
 	
-	if SpecialVars.InputProcessed == true and State == Enum.UserInputState.End then
+	if SpecialVars.InputProcessed == true and State == EndState then
 		SpecialVars.InputProcessed = false
 		Default.InputEnded:Fire()
 	end
 end
 
 local function Behavior_MultipleTaps(self: Methods.Keybind, Args, State: Enum.UserInputState, Button: ButtonType)
+	if not self.Enabled then return end
 	if not self.Settings.RequireAllButtons then error("MultipleTaps Forces Settings.RequireAllButtons to equal true") end
 	UpdatePressedKeys(self, State, Button)
 	
@@ -100,7 +113,7 @@ local function Behavior_MultipleTaps(self: Methods.Keybind, Args, State: Enum.Us
 	local Signals = self.Signals.Default
 	local platform = Args[2]
 	
-	if State == Enum.UserInputState.Begin then
+	if State == BeginState then
 		if not self:AreEnoughButtonsPressed(Args[2]) then return end
 		if not SpecialVars.MultiTapReady then return end
 		if typeof(SpecialVars.InputProcessed) ~= "number" then SpecialVars.InputProcessed = 0 end
@@ -119,15 +132,15 @@ local function Behavior_MultipleTaps(self: Methods.Keybind, Args, State: Enum.Us
 		end
 	end
 	
-	if State == Enum.UserInputState.End then
+	if State == EndState then
 		if SpecialVars.MultiTapReady then return end
 		
 		local Binds = self.Binds
-		local CurrentBinds = Binds.CurrentBinds
-		local PressedButtons = Binds.PressedButtons
+		local CurrentBinds = Binds.CurrentBinds[platform]
+		local PressedButtons = Binds.PressedButtons[platform]
 		
-		for i = 1, #CurrentBinds[platform] do
-			if PressedButtons[platform][CurrentBinds[platform][i]] then
+		for i = 1, #CurrentBinds do
+			if PressedButtons[CurrentBinds[i]] then
 				return
 			end
 		end

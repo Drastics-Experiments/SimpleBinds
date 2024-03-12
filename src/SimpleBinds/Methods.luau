@@ -26,8 +26,6 @@ local function Enable(self: Keybind)
 	local IndexSearch = Binds.IndexSearch
 	local CurrentBinds = Binds.CurrentBinds
 	
-	self.Enabled = true
-	
 	if CurrentBinds.Keyboard then
 		for i = 1, #CurrentBinds.Keyboard do
 			IndexSearch[CurrentBinds.Keyboard[i]] = true
@@ -43,6 +41,8 @@ local function Enable(self: Keybind)
 
 		ContextActionService:BindAction(Settings.Name.."_Console", FireButtonPress, false, table.unpack(CurrentBinds.Console))
 	end
+
+	self.Enabled = true
 
 	return self
 end
@@ -63,6 +63,11 @@ local function Disable(self: Keybind)
 	for i,v in pairs(CurrentBinds.Console) do
 		IndexSearch[v] = nil
 	end
+
+	self.Binds.PressedButtons = {
+		Keyboard = {},
+		Console = {}
+	}
 	
 	ContextActionService:UnbindAction(self.Settings.Name.."_Keyboard")
 	ContextActionService:UnbindAction(self.Settings.Name.."_Console")
@@ -74,6 +79,11 @@ local function Destroy(self: Keybind)
 	if self.Enabled then self:Disable() end
 
 	__destroy:Fire(self.Settings.Name)
+	for i,v in pairs(self) do
+		self[i] = nil
+	end
+
+	self = nil
 
 	return self
 end

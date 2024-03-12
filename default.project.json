@@ -1,6 +1,6 @@
 {
     "name": "SimpleBinds",
     "tree": {
-      "$path": "src"
+      "$path": "src/SimpleBinds"
     }
   }
