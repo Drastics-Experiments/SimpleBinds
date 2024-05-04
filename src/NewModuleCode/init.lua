@@ -1,6 +1,7 @@
 -- // WIP OSS MODULE BY daz_. ON DISCORD
 
 local ContextActionService = game:GetService("ContextActionService")
+local RunService = game:GetService("RunService")
 
 local SignalModule = require(script.Signal)
 local Types = require(script.Types)
@@ -10,8 +11,10 @@ local Signal = SignalModule.new
 local STATES = Enum,UserInputState
 local KEYCODES, USER_INPUT_TYPES = Enum.KeyCode, Enum.UserInputType
 local STRING_SPLIT = string.split
+local HEARTBEAT = RunService.Heartbeat
 local BEHAVIOR_FUNCTIONS = {
     Press = Press,
+    Hold = Hold,
     Toggle = Toggle,
     MultipleTaps = MultipleTaps,
     StrictSequence = StrictSequence
@@ -31,13 +34,17 @@ end
 
 -- // Constructor
 
-function SimpleBinds.CreateKeybind(KeybindName: string, KeybindType: string, RequireAll: boolean)
+function SimpleBinds.CreateKeybind(KeybindName: string, KeybindType: string, RequireAll: boolean, KeybindSettings: {
+    TimeWindow: number,
+    ClickCount: number?,
+}?)
     local self = setmetatable(DefaultData(), Methods)
     local Settings = self.KeybindSettings
 
     Settings.Name = KeybindName
     Settings.KeybindType = KeybindType
     Settings.RequireAllButtons = RequireAll
+    self.BehaviorVars.KeybindConfig = KeybindSettings
     SimpleBinds._Binds[KeybindName] = self
 
     return self
@@ -50,57 +57,64 @@ end
 -- // QOL
 
 function SimpleBinds.EnableAll()
-    
+    for i,v in _Binds do
+        if v.Settings.Enabled then continue end
+        v:Enable()
+    end
 end
 
 function SimpleBinds.DisableAll()
-    
+    for i,v in _Binds do
+        if not v.Settings.Enabled then continue end
+        v:Disable()
+    end
 end
 
 -- // Methods
 
 function Methods.Enable(self)
-    local Condition = self.Settings.Enabled == false
+    local Settings, _ = BindVars(self)
+    local Condition = Settings.Enabled == false
     --assert(Condition, "Cannot use :Enable() on an enabled keybind!")
 
-    local Binds = self.Settings.BindedKeys
-    local BindType = self.Settings.KeybindType
-    local BehaviorVars = self.BehaviorVars
+    local Binds = Settings.BindedKeys
+    local Name = Settings.Name
 
-    self.Settings.Enabled = true
+    Settings.Enabled = true
     
-    SetNewBehaviorFunction(self.Settings.Name)
+    SetNewBehaviorFunction(self)
 
     if #Binds.Keyboard > 0 then
-        ContextActionService:BindAction(`{self.Settings.Name}_Keyboard`, false, WhenKeyStatusChanges, table.unpack(Binds.Keyboard))
+        ContextActionService:BindAction(`{Name}_Keyboard`, false, WhenKeyStatusChanges, table.unpack(Binds.Keyboard))
     end
 
     if #Binds.Console > 0 then
-        ContextActionService:BindAction(`{self.Settings.Name}_Console`, false, WhenKeyStatusChanges, table.unpack(Binds.Console))
+        ContextActionService:BindAction(`{Name}_Console`, false, WhenKeyStatusChanges, table.unpack(Binds.Console))
     end
 
     return self
 end
 
 function Methods.Disable(self)
-    local Condition = self.Settings.Enabled == true
+    local Settings, _ = BindVars(self)
+    local Condition = Settings.Enabled == true
 
     if not Condition then
         assertWarn(Condition, "Cannot use :Disable() on an disabled keybind!")
         return self
     end
 
-    local Binds = self.Settings.BindedKeys
-    local Name = self.Settings.Name
+    local Binds = Settings.BindedKeys
+    local Name = Settings.Name
 
-    self.Settings.Enabled = false
+    Settings.Enabled = false
     
     if #Binds.Keyboard > 0 then
         ContextActionService:UnbindAction(`{Name}_Keyboard`)
     end
 
     if #Binds.Console > 0 then
-        ContextActionService:BindAction(`{Name}_Console`)
+        ContextActionService:UnbindAction(`{Name}_Console`)
     end
 
     return self
@@ -109,6 +123,12 @@ end
 function Methods.Destroy(self)
 end
 
+function Methods.AddCustomLogic(self, Func: (...any) -> (boolean))
+    self.BehaviorVars.CustomLogic = Func
+    return self
+end
+
+-- // TODO: Move this function to the private methods when on a PC again
 function Methods._AreEnoughKeysPressed(self, Platform: "Keyboard" | "Console")
     local Binds = self.Settings.BindedKeys[Platform]
     local PressedKeys = self.BehaviorVars.PressedKeys[Platform]
@@ -172,8 +192,9 @@ end
 function Methods.GetDatastoreKeybindFormat(self)
 end
 
--- // Signal connection example: (Keypressed: InputObject, CustomArg: ...any)
+-- // Private Methods
 
+-- // Signal connection example: (Keypressed: InputObject, CustomArg: ...any)
 function Methods._FireSignal(self, SignalName: string, ButtonPressed: InputObject)
     self.Signals.Default[SignalName]:Fire(ButtonPressed, table.unpack(self.BehaviorVars.CustomArgs or {}))
 end
@@ -197,21 +218,30 @@ function Methods._CreateConnection(self, SignalName)
     end)
 end
 
+function Methods._PerformCustomLogic(self, BindName, InputState, Key)
+    if self.BehaviorVars.CustomLogic then
+        local result = self.BehaviorVars.CustomLogic(self, ProcessBind(BindName), InputState, Key)
+        assert(typeof(result) == "boolean", "Custom logic must return a boolean")
+        return result 
+    end
+    return true
+end
+
 -- // Utility
 
-function SetNewBehaviorFunction(Name)
-    local Bind = SimpleBinds.GetKeybind(Name)
+function SetNewBehaviorFunction(Bind)
     local BType = Bind.Settings.KeybindType
-    for Name, Func in BEHAVIOR_FUNCTIONS do
-        if Name == BType then
-            Bind.BehaviorVars.Func = Func
-        end
-    end
+
+    Bind.BehaviorVars.Func = BEHAVIOR_FUNCTIONS[BType]
+end
+
+function BindVars(bind)
+    return bind.Settings, bind.BehaviorVars
 end
 
 -- // Keybind Logic
 
-local function ProcessBind(BindName)
+function ProcessBind(BindName)
     local Name, Platform = STRING_SPLIT(BindName, "_")
     return Name, Platform
 end
@@ -223,7 +253,7 @@ function WhenKeyStatusChanges(BindName: string, InputState: Enum.UserInputState,
     local PressedKeys = Bind.BehaviorVars.PressedKeys
     local State = InputState == STATES.Begin
     local t = typeof(Key)
-
+    
     if t ~= "EnumItem" then
         if State then
             PressedKeys[Key.KeyCode] = State
@@ -244,21 +274,60 @@ function WhenKeyStatusChanges(BindName: string, InputState: Enum.UserInputState,
 end
 
 function Press(Bind, BindName, InputState: Enum.UserInputState, Key: InputObject)
-    local OnjectName, Platform = ProcessBind(BindName)
+    local ObjectName, Platform = ProcessBind(BindName)
+
     if InputState == STATES.Begin then
         local EnoughPressed = Bind:_AreEnoughKeysPressed(Platform)
-        if EnoughPressed then
-            Bind:_FireSignal("Triggered", Key)
+        if not EnoughPressed then return end
+        Bind:_FireSignal("Triggered", Key)
+    end
+end
+
+function Hold(Bind, BindName, InputState, Key)
+    local Settings, BehaviorVars = BindVars(Bind)
+    local ObjectName, Platform = ProcessBind(BindName)
+    local KeybindConfig = BehaviorVars.KeybindConfig
+    local EnoughPressed = Bind:_AreEnoughKeysPressed(Platform)
+    local Same = EnoughPressed == (BehaviorVars.LastKeyCheck or false)
+
+    if not Same then return end
+    if EnoughPressed then
+        if BehaviorVars.Connection then return end
+        Bind:_FireSignal("InputBegan", Key)
+        BehaviorVars.Connection = HEARTBEAT:Connect(function(deltaTime)
+            BehaviorVars.CurrentTimeDuration += deltaTime
+            if BehaviorVars.CurrentTimeDuration >= KeybindConfig.TimeWindow then
+                Bind:_FireSignal("Triggered", Key)
+                Bind:_FireSignal("InputEnded", Key)
+                BehaviorVars.CurrentTimeDuration = 0
+                BehaviorVars.Connection:Disconnect()
+                BehaviorVars.Connection = nil
+            end
+        end)
+    else
+        if BehaviorVars.Connection then
+            BehaviorVars.Connection:Disconnect()
+            BehaviorVars.Connection = nil
+            BehaviorVars.CurrentTimeDuration = 0
+            Bind:_FireSignal("InputEnded", Key)
         end
     end
 end
 
 function Toggle(Bind, BindName, InputState, Key)
+    local Settings, BehaviorVars = BindVars(Bind)
     local ObjectName, Platform = ProcessBind(BindName)
     local EnoughPressed = Bind:_AreEnoughKeysPressed(Platform)
+    local Same = EnoughPressed == (BehaviorVars.LastKeyCheck or false)
+
+    if not Same then
+        BehaviorVars.LastKeyCheck = EnoughPressed
+        local str = (EnoughPressed and "InputBegan") or (not EnoughPressed and "InputEnded")
+        Bind:_FireSignal(str, Key)
+    end
 end
 
-function MultipleTaps()
+function MultipleTaps(Bind, BindName, InputState, Key)
     
 end
 

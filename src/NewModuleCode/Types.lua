@@ -29,7 +29,8 @@ export type BehaviorVars = {
         Console: TableEnums
     },
     CustomArgs: {any}?,
-    Func: () -> ()
+    Func: () -> (),
+    KeybindConfig: {}?
 }
 
 export type Keybind = Methods & Internals & {
@@ -44,6 +45,7 @@ export type Methods = {
     WrapSignal: (Keybind, Signal: RBXScriptSignal) -> (Keybind),
     Construct: (Keybind, InfoTable: ConstructTable) -> (Keybind),
     SetSignalArgs: (Keybind, ...any) -> (Keybind),
+    AddCustomLogic: (Keybind, Func: (...any) -> (boolean)) -> (Keybind),
     SetPlatformBinds: (Keybind, Platform: "Keyboard" | "Console", NewBinds: TableEnums) -> (Keybind)
 }
 
