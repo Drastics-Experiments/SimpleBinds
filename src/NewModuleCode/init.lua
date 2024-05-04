@@ -1,3 +1,5 @@
+-- // WIP OSS MODULE BY daz_. ON DISCORD
+
 local ContextActionService = game:GetService("ContextActionService")
 
 local SignalModule = require(script.Signal)
@@ -98,17 +100,48 @@ function Methods.Destroy(self)
 end
 
 function Methods._AreEnoughKeysPressed(self, Platform: "Keyboard" | "Console")
-    local Binds = self.Settings.BindedKeys
-    local Keyboard, Console = Binds.Keyboard, Binds.Console
+    local Binds = self.Settings.BindedKeys[Platform]
+    local PressedKeys = self.BehaviorVars.PressedKeys[Platform]
+    local Required = self.Settings.RequireAllButtons
+    local Detections = 0
 
+    for _, Enum in Binds do
+        if PressedKeys[Enum] then
+            Detections += 1
+        end
+    end
+
+    return (Required and Detections >= #Binds) or (Required == false and Detections > 0)
 end
 
-function Methods.WrapSignal(self, Signal: RBXScriptSignal)
+function Methods.WrapSignal(self, SignalName: string, Signal: RBXScriptSignal, Behavior: "PressAll" | {Enum.KeyCode | Enum.UserInputType}, InputState: "Began" | "Ended", Platform)
+    local Condition = self.Settings.Enabled == false
+    if not Condition then
+        assertWarn(Condition, "Cannot Wrap a signal while keybind is enabled")
+        return self
+    end
+
+    local Signals = self.Signals
+    local Custom = Signals.Custom
+
+    if not Custom[SignalName] then
+        local CreatedSignal = SignalModule.WrapSignal(Signal)
+        Custom[SignalName] = {
+            Signal = CreatedSignal,
+            Behavior = Behavior,
+            InputState = InputState,
+            Platform = Platform
+        }
+    else
+        assertWarn(false, "Wrapped signal has a counterpart using the same name") -- ima prob change this msg bru
+    end
+    return self
 end
 
 function Methods.SetSignalArgs(self, ...)
     local PackedData = {...}
     self.BehaviorVars.CustomArgs = PackedData
+    return self
 end
 
 function Methods.SetPlatformBinds(self, Platform: "Keyboard" | "Console", NewBinds: {Enum.KeyCode | Enum.UserInputType})
@@ -129,6 +162,20 @@ end
 
 function Methods._FireSignal(self, SignalName: string, ButtonPressed: InputObject)
     self.Signals.Default[SignalName]:Fire(ButtonPressed, table.unpack(self.BehaviorVars.CustomArgs or {}))
+end
+
+function Methods._CreateConnection(self, SignalName)
+    local Signal = self.Signals.Custom[SignalName]
+    Signal.Signal:Connect(function()
+        if Signal.Behavior == "PressAll" then
+            local Binds = self.Settings.BindedKeys[Signal.Platform]
+            local Name = self.Settings.Name
+            for i,v in Binds do
+                WhenKeyStatusChanges(Name, Enum.UserInputState[Signal.State], v)
+            end
+        end
+            
+    end)
 end
 
 -- // Keybind Logic
