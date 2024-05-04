@@ -4,11 +4,11 @@ local Types = require(script.Parent.Types)
 return function()
     return {
         Settings = {
-            Enabled = false,       
-            KeybindType = "Press",        
-            BindedKeys = {      
-                Keyboard = {},       
-                Console = {}       
+            Enabled = false,
+            KeybindType = "Press",
+            BindedKeys = {
+                Keyboard = {},
+                Console = {}
             },
         },
         Signals = {
@@ -18,6 +18,12 @@ return function()
                 InputEnded = Signal()
             },
             Custom = {}
+        },
+        BehaviorVars = {
+            PressedKeys = {
+                Keyboard = {},
+                Console = {},
+            }
         }
     }
 end
