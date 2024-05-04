@@ -1,17 +1,18 @@
 local SignalModule = require(script.Parent.Signal)
 type Signal = typeof(SignalModule.new(table.unpack(...)))
 
-type KeybindSettings = {
+export type KeybindSettings = {
     KeybindType: "Press" | "Toggle" | "MultipleTaps" | "StrictSequence",
     RequireAllButtons: boolean,
+    Enabled: boolean,
     BindedKeys: {
-        Keyboard: {Enum.KeyCode, Enum.UserInputType},
-        Console: {Enum.KeyCode, Enum.UserInputType},
+        Keyboard: {Enum.KeyCode | Enum.UserInputType},
+        Console: {Enum.KeyCode | Enum.UserInputType},
     },
 
 }
 
-type Internals = {
+export type Internals = {
     Signals: {
         Default: {
             Triggered: Signal,
@@ -27,9 +28,9 @@ type Internals = {
 export type Keybind = Methods & Internals & KeybindSettings
 
 export type Methods = {
-    Enable: (self: Keybind) -> (self: Keybind),
-    Disable: (self: Keybind) -> (self: Keybind),
-    Destroy: (self: Keybind) -> (self: Keybind),
+    Enable: (Keybind) -> (Keybind),
+    Disable: (Keybind) -> (Keybind),
+    Destroy: (Keybind) -> (Keybind),
     WrapSignal: () -> ()
 }
 
@@ -38,4 +39,4 @@ export type Module = {
     GetKeybind: (KeybindName: string) -> (Keybind)
 }
 
-return nil
+return {}

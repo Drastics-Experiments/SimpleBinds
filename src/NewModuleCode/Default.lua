@@ -1,12 +1,15 @@
 local Signal = require(script.Parent.Signal).new
 local Types = require(script.Parent.Types)
 
-return function():: Types.KeybindSettings & Types.Internals
+return function()
     return {
-        KeybindType = "Press",
-        BindedKeys = {
-            Keyboard = {},
-            Console = {}
+        Settings = {
+            Enabled = false,       
+            KeybindType = "Press",        
+            BindedKeys = {      
+                Keyboard = {},       
+                Console = {}       
+            },
         },
         Signals = {
             Default = {
