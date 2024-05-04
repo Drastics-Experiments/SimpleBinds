@@ -49,7 +49,9 @@ export type Methods = {
 
 export type Module = {
     CreateKeybind: (KeybindName: string) -> (Keybind),
-    GetKeybind: (KeybindName: string) -> (Keybind)
+    GetKeybind: (KeybindName: string) -> (Keybind),
+    EnableAll: () -> (),
+    DisableAll: () ->()
 }
 
 

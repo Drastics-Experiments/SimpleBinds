@@ -7,8 +7,20 @@ local Types = require(script.Types)
 local DefaultData = require(script.Default)
 local Signal = SignalModule.new
 
+local STATES = Enum,UserInputState
+local KEYCODES, USER_INPUT_TYPES = Enum.KeyCode, Enum.UserInputType
+local STRING_SPLIT = string.split
+local BEHAVIOR_FUNCTIONS = {
+    Press = Press,
+    Toggle = Toggle,
+    MultipleTaps = MultipleTaps,
+    StrictSequence = StrictSequence
+}
+
+
 local SimpleBinds = {}
 SimpleBinds._Binds = {}
+local _Binds = SimpleBinds._Binds
 
 local Methods = {}
 Methods.__index = Methods
@@ -32,35 +44,33 @@ function SimpleBinds.CreateKeybind(KeybindName: string, KeybindType: string, Req
 end
 
 function SimpleBinds.GetKeybind(KeybindName)
-    return SimpleBinds._Binds[KeybindName]
+    return _Binds[KeybindName]
+end
+
+-- // QOL
+
+function SimpleBinds.EnableAll()
+    
+end
+
+function SimpleBinds.DisableAll()
+    
 end
 
 -- // Methods
 
 function Methods.Enable(self)
     local Condition = self.Settings.Enabled == false
-
-    if not Condition then
-        assertWarn(Condition, "Cannot use :Enable() on an enabled keybind!")
-        return self
-    end
+    --assert(Condition, "Cannot use :Enable() on an enabled keybind!")
 
     local Binds = self.Settings.BindedKeys
     local BindType = self.Settings.KeybindType
     local BehaviorVars = self.BehaviorVars
 
     self.Settings.Enabled = true
-
-    if BindType == "Press" then
-        BehaviorVars.Func = Press
-    elseif BindType == "Toggle" then
-        BehaviorVars.Func = Toggle
-    elseif BindType == "MulipleTaps" then
-        BehaviorVars.Func = MultipleTaps
-    elseif BindType == "StrictSequence" then
-        BehaviorVars.Func = StrictSequence
-    end
     
+    SetNewBehaviorFunction(self.Settings.Name)
+
     if #Binds.Keyboard > 0 then
         ContextActionService:BindAction(`{self.Settings.Name}_Keyboard`, false, WhenKeyStatusChanges, table.unpack(Binds.Keyboard))
     end
@@ -145,6 +155,10 @@ function Methods.SetSignalArgs(self, ...)
 end
 
 function Methods.SetPlatformBinds(self, Platform: "Keyboard" | "Console", NewBinds: {Enum.KeyCode | Enum.UserInputType})
+    local Settings = self.Settings
+    if Settings.Enabled then return self end -- too lazy to type out warn thing
+    Settings.BindedKeys[Platform] = NewBinds
+    return self
 end
 
 function Methods.Construct(self, InfoTable: Types.ConstructTable)
@@ -171,51 +185,77 @@ function Methods._CreateConnection(self, SignalName)
             local Binds = self.Settings.BindedKeys[Signal.Platform]
             local Name = self.Settings.Name
             for i,v in Binds do
-                WhenKeyStatusChanges(Name, Enum.UserInputState[Signal.State], v)
+                WhenKeyStatusChanges(Name, STATES[Signal.State], v)
+            end
+        else
+            local Name = self.Settings.Name
+            for i,v in Signal.Behavior do
+                WhenKeyStatusChanges(Name, STATES[Signal.State], v)
             end
         end
             
     end)
 end
 
+-- // Utility
+
+function SetNewBehaviorFunction(Name)
+    local Bind = SimpleBinds.GetKeybind(Name)
+    local BType = Bind.Settings.KeybindType
+    for Name, Func in BEHAVIOR_FUNCTIONS do
+        if Name == BType then
+            Bind.BehaviorVars.Func = Func
+        end
+    end
+end
+
 -- // Keybind Logic
 
 local function ProcessBind(BindName)
-    local Name, Platform = string.split(BindName, "_")
+    local Name, Platform = STRING_SPLIT(BindName, "_")
     return Name, Platform
 end
 
+-- I am aware this function isnt the best atm but optimizing is very annoying on an ipad :(
 function WhenKeyStatusChanges(BindName: string, InputState: Enum.UserInputState, Key: InputObject)
     local ObjectName, Platform = ProcessBind(BindName)
-    local Bind = SimpleBinds._Binds[ObjectName]
+    local Bind = SimpleBinds.GetKeybind(ObjectName)
     local PressedKeys = Bind.BehaviorVars.PressedKeys
-    local State = InputState == Enum.UserInputState.Begin
+    local State = InputState == STATES.Begin
+    local t = typeof(Key)
 
-    if State then
-        PressedKeys[Key.KeyCode] = State
-        PressedKeys[Key.UserInputType] = State
+    if t ~= "EnumItem" then
+        if State then
+            PressedKeys[Key.KeyCode] = State
+            PressedKeys[Key.UserInputType] = State
+        else
+            PressedKeys[Key.KeyCode] = nil
+            PressedKeys[Key.UserInputType] = nil
+        end
     else
-        PressedKeys[Key.KeyCode] = nil
-        PressedKeys[Key.UserInputType] = nil
+        if State then
+            PressedKeys[Key] = State
+        else
+            PressedKeys[Key] = nil
+        end
     end
 
-    Bind.BehaviorVars.Func(BindName, InputState, Key)
+    Bind.BehaviorVars.Func(Bind, BindName, InputState, Key)
 end
 
-function Press(BindName: string, InputState: Enum.UserInputState, Key: InputObject)
-    local ObjectName, Platform = ProcessBind(BindName)
-    local Bind = SimpleBinds._Binds[ObjectName]
-
-    if InputState == Enum.UserInputState.Begin then
-        local State = Bind:_AreEnoughKeysPressed(Platform)
-        if State then
+function Press(Bind, BindName, InputState: Enum.UserInputState, Key: InputObject)
+    local OnjectName, Platform = ProcessBind(BindName)
+    if InputState == STATES.Begin then
+        local EnoughPressed = Bind:_AreEnoughKeysPressed(Platform)
+        if EnoughPressed then
             Bind:_FireSignal("Triggered", Key)
         end
     end
 end
 
-function Toggle()
-    
+function Toggle(Bind, BindName, InputState, Key)
+    local ObjectName, Platform = ProcessBind(BindName)
+    local EnoughPressed = Bind:_AreEnoughKeysPressed(Platform)
 end
 
 function MultipleTaps()
