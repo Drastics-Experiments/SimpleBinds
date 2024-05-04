@@ -3,10 +3,12 @@ type Signal = typeof(SignalModule.new(table.unpack(...)))
 
 type KeybindSettings = {
     KeybindType: "Press" | "Toggle" | "MultipleTaps" | "StrictSequence",
+    RequireAllButtons: boolean,
     BindedKeys: {
         Keyboard: {Enum.KeyCode, Enum.UserInputType},
         Console: {Enum.KeyCode, Enum.UserInputType},
     },
+
 }
 
 type Internals = {
@@ -22,9 +24,7 @@ type Internals = {
 
 
 
-export type Keybind = Methods & {
-
-}
+export type Keybind = Methods & Internals & KeybindSettings
 
 export type Methods = {
     Enable: (self: Keybind) -> (self: Keybind),
