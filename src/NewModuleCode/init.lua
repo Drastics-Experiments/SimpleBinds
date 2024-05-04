@@ -97,13 +97,13 @@ end
 function Methods.Destroy(self)
 end
 
-function Methods._AreEnoughKeysPressed(self)
+function Methods._AreEnoughKeysPressed(self, Platform: "Keyboard" | "Console")
     local Binds = self.Settings.BindedKeys
     local Keyboard, Console = Binds.Keyboard, Binds.Console
 
 end
 
-function Methods.WrapSignal(self)
+function Methods.WrapSignal(self, Signal: RBXScriptSignal)
 end
 
 function Methods.SetSignalArgs(self, ...)
@@ -111,10 +111,10 @@ function Methods.SetSignalArgs(self, ...)
     self.BehaviorVars.CustomArgs = PackedData
 end
 
-function Methods.SetPlatformBinds(self)
+function Methods.SetPlatformBinds(self, Platform: "Keyboard" | "Console", NewBinds: {Enum.KeyCode | Enum.UserInputType})
 end
 
-function Methods.Construct(self)
+function Methods.Construct(self, InfoTable: Types.ConstructTable)
     local Comparison = self.Settings.Enabled == false
     if not Comparison then
         assertWarn(Comparison, "Could not run :Construst() because keybind is already enabled")
@@ -160,9 +160,9 @@ function Press(BindName: string, InputState: Enum.UserInputState, Key: InputObje
     local Bind = SimpleBinds._Binds[ObjectName]
 
     if InputState == Enum.UserInputState.Begin then
-        local State = Bind:AreEnoughKeysPressed()
+        local State = Bind:_AreEnoughKeysPressed(Platform)
         if State then
-            Bind:FireSignal("Triggered", Key)
+            Bind:_FireSignal("Triggered", Key)
         end
     end
 end
