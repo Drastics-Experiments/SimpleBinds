@@ -23,20 +23,47 @@ export type Internals = {
     },
 }
 
-
-
-export type Keybind = Methods & Internals & KeybindSettings
-
+export type BehaviorVars = {
+    PressedKeys: {
+        Keyboard: TableEnums,
+        Console: TableEnums
+    },
+    CustomArgs: {any}?,
+    Func: () -> ()
+}
+export type Keybind = Methods & Internals & {
+    Settings: KeybindSettings,
+    BehaviorVars: BehaviorVars
+}
 export type Methods = {
     Enable: (Keybind) -> (Keybind),
     Disable: (Keybind) -> (Keybind),
     Destroy: (Keybind) -> (Keybind),
-    WrapSignal: () -> ()
+    WrapSignal: (Keybind, Signal: RBXScriptSignal) -> (Keybind),
+    Construct: (Keybind, InfoTable: ConstructTable) -> (Keybind),
+    SetSignalArgs: (Keybind, ...any) -> (Keybind),
+    SetPlatformBinds: (Keybind, Platform: "Keyboard" | "Console", NewBinds: TableEnums) -> (Keybind)
 }
-
 export type Module = {
     CreateKeybind: (KeybindName: string) -> (Keybind),
     GetKeybind: (KeybindName: string) -> (Keybind)
 }
 
-return {}
+type TableEnums = {Enum.KeyCode | Enum.UserInputType}
+
+export type ConstructTable = {
+    Keyboard: TableEnums?,
+    Console: TableEnums?,
+    CustomSignals: {
+        [string]: {
+            Signal: RBXScriptSignal,
+            Behavior: "PressAll" | TableEnums,
+            InputState: "Began" | "Ended"
+        }
+    }?,
+    Callbacks: {
+        ["Triggered" | "InputBegan" | "InputEnded"]: (KeyPressed: InputObject, ...any) -> ()
+    }
+}
+local a:Module
+return nil

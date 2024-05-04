@@ -29,7 +29,8 @@ function SimpleBinds.CreateKeybind(KeybindName: string, KeybindType: string, Req
     return self
 end
 
-function SimpleBinds.GetKeybind()
+function SimpleBinds.GetKeybind(KeybindName)
+    return SimpleBinds._Binds[KeybindName]
 end
 
 -- // Methods
@@ -43,15 +44,27 @@ function Methods.Enable(self)
     end
 
     local Binds = self.Settings.BindedKeys
+    local BindType = self.Settings.KeybindType
+    local BehaviorVars = self.BehaviorVars
 
     self.Settings.Enabled = true
+
+    if BindType == "Press" then
+        BehaviorVars.Func = Press
+    elseif BindType == "Toggle" then
+        BehaviorVars.Func = Toggle
+    elseif BindType == "MulipleTaps" then
+        BehaviorVars.Func = MultipleTaps
+    elseif BindType == "StrictSequence" then
+        BehaviorVars.Func = StrictSequence
+    end
     
     if #Binds.Keyboard > 0 then
-        ContextActionService:BindAction(`{self.Settings.Name}_Keyboard`, false, table.unpack(Binds.Keyboard))
+        ContextActionService:BindAction(`{self.Settings.Name}_Keyboard`, false, WhenKeyStatusChanges, table.unpack(Binds.Keyboard))
     end
 
     if #Binds.Console > 0 then
-        ContextActionService:BindAction(`{self.Settings.Name}_Console`, false, table.unpack(Binds.Console))
+        ContextActionService:BindAction(`{self.Settings.Name}_Console`, false, WhenKeyStatusChanges, table.unpack(Binds.Console))
     end
 
     return self
@@ -84,23 +97,38 @@ end
 function Methods.Destroy(self)
 end
 
-function Methods.AreEnoughKeysPressed(self)
-    
+function Methods._AreEnoughKeysPressed(self)
+    local Binds = self.Settings.BindedKeys
+    local Keyboard, Console = Binds.Keyboard, Binds.Console
+
 end
 
-function Methods.ConnectSignal(self)
+function Methods.WrapSignal(self)
 end
 
-function Methods.AddSignalArg(self)
+function Methods.SetSignalArgs(self, ...)
+    local PackedData = {...}
+    self.BehaviorVars.CustomArgs = PackedData
 end
 
 function Methods.SetPlatformBinds(self)
 end
 
 function Methods.Construct(self)
+    local Comparison = self.Settings.Enabled == false
+    if not Comparison then
+        assertWarn(Comparison, "Could not run :Construst() because keybind is already enabled")
+        return self
+    end
 end
 
 function Methods.GetDatastoreKeybindFormat(self)
+end
+
+-- // Signal connection example: (Keypressed: InputObject, CustomArg: ...any)
+
+function Methods._FireSignal(self, SignalName: string, ButtonPressed: InputObject)
+    self.Signals.Default[SignalName]:Fire(ButtonPressed, table.unpack(self.BehaviorVars.CustomArgs or {}))
 end
 
 -- // Keybind Logic
@@ -108,11 +136,6 @@ end
 local function ProcessBind(BindName)
     local Name, Platform = string.split(BindName, "_")
     return Name, Platform
-end
-
-local function GetObjectVars(BindName)
-    local Bind = SimpleBinds._Binds[BindName]
-    return Bind
 end
 
 function WhenKeyStatusChanges(BindName: string, InputState: Enum.UserInputState, Key: InputObject)
@@ -139,7 +162,7 @@ function Press(BindName: string, InputState: Enum.UserInputState, Key: InputObje
     if InputState == Enum.UserInputState.Begin then
         local State = Bind:AreEnoughKeysPressed()
         if State then
-            Bind.Signals.Default.Triggered:Fire()
+            Bind:FireSignal("Triggered", Key)
         end
     end
 end
