@@ -23,7 +23,7 @@ export type Connection = {
 }
 
 export type Signal<T...> = {
-	Fire: (self: Signal<T...>, T...) -> (),
+	Fire: (self: Signal<T...>, ...any) -> (),
 	FireDeferred: (self: Signal<T...>, T...) -> (),
 	Connect: (self: Signal<T...>, fn: (T...) -> ()) -> Connection,
 	Once: (self: Signal<T...>, fn: (T...) -> ()) -> Connection,
@@ -31,6 +31,7 @@ export type Signal<T...> = {
 	GetConnections: (self: Signal<T...>) -> { Connection },
 	Destroy: (self: Signal<T...>) -> (),
 	Wait: (self: Signal<T...>) -> T...,
+	_proxyHandler: RBXScriptConnection?
 }
 
 -- The currently idle thread to run the next handler on
@@ -157,7 +158,7 @@ function Signal.new<T...>(): Signal<T...>
 		_yieldedThreads = nil,
 	}, Signal)
 
-	return self
+	return self:: Signal
 end
 
 --[=[
