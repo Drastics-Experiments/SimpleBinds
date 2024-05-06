@@ -11,7 +11,8 @@
 
     // Methods
     :Construct() (DONE)
-    :Destroy()
+    :Destroy() (DONE)
+	:DisconnectSignal() (DONE)
 
     // Other
     Add more debugging errors/warns (DONE)
@@ -46,18 +47,25 @@ end
 
 -- // Constructor
 
-function SimpleBinds.CreateKeybind(KeybindName: string, KeybindType: "Press" | "Hold" | "Toggle" | "MultipleTaps" | "StrictSequence", RequireAll: boolean, KeybindSettings: {
-    TimeWindow: number,
-    ClickCount: number?,
-}?)
+
+
+function SimpleBinds.CreateKeybind(Args: Types.CreationArgs)
     local self = setmetatable(DefaultData(), Methods)
     local Settings = self.Settings
 
-    Settings.Name = KeybindName
-    Settings.KeybindType = KeybindType
-    Settings.RequireAllButtons = RequireAll
-    self.BehaviorVars.KeybindConfig = KeybindSettings
-    _Binds[KeybindName] = self
+    Settings.Name = Args.Name
+    Settings.KeybindType = Args.KeybindType
+    Settings.RequireAllButtons = Args.RequireAll
+	
+	local KeybindConfig = {}
+	for Arg, v in Args do
+		if not Settings[Arg] then
+			KeybindConfig[Arg] = v
+		end
+	end
+
+    self.BehaviorVars.KeybindConfig = KeybindConfig
+    _Binds[Settings.Name] = self
 
     return self
 end
@@ -132,9 +140,31 @@ function Methods.Disable(self: Types.Keybind)
 end
 
 function Methods.Destroy(self)
+	local Settings, BehaviorVars = BindVars(self)
+	local Signals = self.Signals
+
+	if Settings.Enabled then self:Disable() end
+
+	for i,v in Signals.Default do
+		v:Destroy()
+	end
+
+	for i,v in Signals.Custom do
+		v.Signal:Destroy()
+	end
+
+	BehaviorVars.Connection:Destroy()
+
+	_Binds[Settings.Name] = nil
+
+	for i,v in self do
+		self[i] = nil
+	end
 end
 
 function Methods.AddCustomLogic(self: Types.Keybind, Func: (...any) -> (boolean))
+	assert(Func ~= nil, "Must Give a function for custom logic")
+	assert(typeof(Func(self, self.Settings.Name, "_Keyboard", STATES.Begin, self.Settings.BindedKeys.Keyboard[1] or self.Settings.BindedKeys.Console[1])) == "boolean", "Custom logic function must return a boolean type")
     self.BehaviorVars.CustomLogic = Func
     return self
 end
@@ -194,8 +224,14 @@ function Methods.Once(self: Types.Keybind, SignalType: Types.EventTypes, Func: (
 	return self
 end
 
-function Methods.DisconnectSignal(self: Types.Keybind, SignalType: Types.EventTypes)
-	
+function Methods.DisconnectSignal(self: Types.Keybind, SignalName: string, SignalType: Types.EventTypes, IsCustomSignal: boolean)
+	IsCustomSignal = IsCustomSignal or false
+	local path = self.Signals[(IsCustomSignal and "Custom") or (not IsCustomSignal and "Default")]
+	local FoundSignal = path[SignalName]
+
+	assert(FoundSignal, "Could not find signal")
+	FoundSignal:DisconnectAll()
+	return self
 end
 
 function Methods.SetSignalArgs(self: Types.Keybind, ...)
@@ -272,6 +308,20 @@ function Methods._PerformCustomLogic(self: Types.PrivateKeybind, BindName: strin
     assert(typeof(result) == "boolean", "Custom logic must return a boolean")
 	
 	return result 
+end
+
+function Methods._GetAmountPressed(self: Types.PrivateKeybind, Platform: string)
+	local Detections = 0
+	local PressedKeys = self.BehaviorVars.PressedKeys[Platform]
+	local Binds = self.Settings.BindedKeys[Platform]
+
+	for i,v in Binds do
+		if PressedKeys[v] then
+			Detections += 1
+		end
+	end
+
+	return Detections
 end
 
 -- // Utility

@@ -1,2 +1,10 @@
-local s = require(script.Parent)
-s.CreateKeybind("", "Hold", false, {TimeWindow = 1}):WrapSignal()
+local SimpleBinds = require(script.Parent)
+
+SimpleBinds.CreateKeybind({
+    Name = "Example",
+    KeybindType = "Press",
+    RequireAll = false,
+}):Construct({
+    Keyboard = {Enum.UserInputType.MouseButton1},
+    Console = {},
+})

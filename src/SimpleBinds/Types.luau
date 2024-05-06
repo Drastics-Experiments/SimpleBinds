@@ -13,13 +13,21 @@ export type InputChoices = InputObject | Enum.KeyCode | Enum.UserInputType
 
 
 
-export type Keybind = Methods & Internals & {
+export type Keybind = Internals & {
 	Settings: KeybindSettings,
 	BehaviorVars: BehaviorVars,
 	_OverrideOtherContextActions: boolean
-}
+} & Methods
 
 export type PrivateKeybind = Keybind & PrivateMethods
+
+export type CreationArgs = {
+    Name: string,
+    KeybindType: KeybindTypes,
+    RequireAll: boolean,
+    TimeWindow: number?,
+    ClickCount: number?
+}
 
 
 export type KeybindSettings = {
@@ -83,9 +91,12 @@ export type Methods = {
 	Once: (self: Keybind, SignalType: EventTypes, Func: (InputObject, ...any) -> ()) -> (Keybind),
 	Connect: (self: Keybind, SignalType: EventTypes, Func: (InputObject, ...any) -> ()) -> (Keybind),
 	SetPlatformBinds: (self: Keybind, Platform: "Keyboard" | "Console", NewBinds: TableEnums) -> (Keybind),
-	AddCustomLogic: (self: Keybind, Func: (Bind: Keybind, BindName: string, InputState: Enum.UserInputState, Key: any) -> (boolean)) -> (Keybind),
+	AddCustomLogic: (self: Keybind, Func: (Bind: PrivateKeybind, BindName: string, InputState: Enum.UserInputState, Key: any) -> (boolean)) -> (Keybind),
 	WrapSignal: (self: Keybind, SignalName: string, Signal: RBXScriptSignal, Behavior: "PressAll" | TableEnums, InputState: "Begin" | "End", Platform: "Keyboard" | "Console") -> (Keybind),
 }
+
+
+
 
 export type PrivateMethods = {
     _FireSignal: (self: PrivateKeybind, SignalName: "Triggered" | "InputBegan" | "InputEnded", Key: InputObject | Enum.KeyCode | Enum.UserInputType) -> (nil),
@@ -94,7 +105,7 @@ export type PrivateMethods = {
 }
 
 export type Module = {
-    CreateKeybind: (KeybindName: string, KeybindType: KeybindTypes, RequireAll: boolean, KeybindSettings: {TimeWindow: number, ClickCount: number?}?) -> (Keybind),
+    CreateKeybind: (KeybindName: string, Args: CreationArgs) -> (Keybind),
     GetKeybind: (KeybindName: string) -> (Keybind),
     EnableAll: () -> (),
     DisableAll: () ->()
