@@ -1,11 +1,29 @@
 local SignalModule = require(script.Parent.Signal)
-type Signal = SignalModule.Signal
+type Signal = SignalModule.Signal<any>
+
 type TableEnums = {Enum.KeyCode | Enum.UserInputType}
 type PossibleBinds = {[Enum.KeyCode | Enum.UserInputType]: any}
+
+export type KeybindTypes = "Press" | "Hold" | "Toggle" | "MultipleTaps" | "StrictSequence"
+export type EventTypes = "Triggered" | "InputBegan" | "InputEnded"
 export type InputChoices = InputObject | Enum.KeyCode | Enum.UserInputType
 
+
+
+
+
+
+export type Keybind = Methods & Internals & {
+	Settings: KeybindSettings,
+	BehaviorVars: BehaviorVars,
+	_OverrideOtherContextActions: boolean
+}
+
+export type PrivateKeybind = Keybind & PrivateMethods
+
+
 export type KeybindSettings = {
-    KeybindType: "Press" | "Toggle" | "MultipleTaps" | "StrictSequence",
+    KeybindType: KeybindTypes,
     RequireAllButtons: boolean,
     Enabled: boolean,
     Name: string,
@@ -35,71 +53,68 @@ export type Internals = {
 
 
 export type BehaviorVars = {
+	CustomArgs: {any}?,
+	LastKeyCheck: any?,
+	CurrentTimeDuration: number,
+	Connection: Signal,
+	Func: (Bind: PrivateKeybind, BindName: string, InputState: Enum.UserInputState, Key: InputChoices) -> (nil),
+	CustomLogic: (Bind: PrivateKeybind, Name: string, Platform: string, InputState: Enum.UserInputState, Key: InputObject | Enum.KeyCode | Enum.UserInputType) -> (boolean),
+
     PressedKeys: {
         Keyboard: PossibleBinds,
         Console: PossibleBinds
-    },
-    CustomArgs: {any}?,
-    Func: (Bind: PrivateKeybind, BindName: string, InputState: Enum.UserInputState, Key: InputChoices) -> (nil),
+	},
+	
     KeybindConfig: {
         TimeWindow: number,
         ClickCount: number?
-    }?,
-    Connection: RBXScriptConnection?,
-    CurrentTimeDuration: number?,
-    LastKeyCheck: any?,
-    CustomLogic: (Bind: PrivateKeybind, Name: string, Platform: string, InputState: Enum.UserInputState, Key: InputObject | Enum.KeyCode | Enum.UserInputType) -> (boolean)
+    },
 }
 
-export type Keybind = Methods & Internals & {
-    Settings: KeybindSettings,
-    BehaviorVars: BehaviorVars
-}
-
-export type PrivateKeybind = Keybind & PrivateMethods
 
 export type Methods = {
     Enable: (self: Keybind) -> (Keybind),
     Disable: (self: Keybind) -> (Keybind),
     Destroy: (self: Keybind) -> (Keybind),
-    WrapSignal: (self: Keybind, SignalName: string, Signal: RBXScriptSignal, Behavior: "PressAll" | TableEnums, InputState: "Begin" | "End", Platform: "Keyboard" | "Console") -> (Keybind),
-    Construct: (self:Keybind, InfoTable: ConstructTable) -> (Keybind),
-    SetSignalArgs: (self: Keybind, ...any) -> (Keybind),
-    AddCustomLogic: (self: Keybind, Func: (...any) -> (boolean)) -> (Keybind),
-    SetPlatformBinds: (self: Keybind, Platform: "Keyboard" | "Console", NewBinds: TableEnums) -> (Keybind)
+	SetSignalArgs: (self: Keybind, ...any) -> (Keybind),
+	Construct: (self:Keybind, InfoTable: ConstructTable) -> (Keybind),
+	CreateConnection: (self: Keybind, SignalName: string) -> (Keybind),
+	DisconnectSignal: (self: Keybind, SignalType: EventTypes) -> (Keybind),
+	Once: (self: Keybind, SignalType: EventTypes, Func: (InputObject, ...any) -> ()) -> (Keybind),
+	Connect: (self: Keybind, SignalType: EventTypes, Func: (InputObject, ...any) -> ()) -> (Keybind),
+	SetPlatformBinds: (self: Keybind, Platform: "Keyboard" | "Console", NewBinds: TableEnums) -> (Keybind),
+	AddCustomLogic: (self: Keybind, Func: (Bind: Keybind, BindName: string, InputState: Enum.UserInputState, Key: any) -> (boolean)) -> (Keybind),
+	WrapSignal: (self: Keybind, SignalName: string, Signal: RBXScriptSignal, Behavior: "PressAll" | TableEnums, InputState: "Begin" | "End", Platform: "Keyboard" | "Console") -> (Keybind),
 }
 
 export type PrivateMethods = {
     _FireSignal: (self: PrivateKeybind, SignalName: "Triggered" | "InputBegan" | "InputEnded", Key: InputObject | Enum.KeyCode | Enum.UserInputType) -> (nil),
     _PerformCustomLogic: (self: PrivateKeybind, BindName: string, InputState: "Began" | "End", Key: InputObject | Enum.KeyCode | Enum.UserInputType) -> (boolean),
-    _CreateConnection: (self: PrivateKeybind, SignalName: string) -> (nil),
-    _AreEnoughKeysPressed: (self: PrivateKeybind, Platform: "Keyboard" | "Console") -> (boolean)
+    _AreEnoughKeysPressed: (self: PrivateKeybind, Platform: string) -> (boolean)
 }
 
 export type Module = {
-    CreateKeybind: (KeybindName: string, KeybindType: "Press" | "Hold" | "Toggle" | "MultipleTaps" | "StrictSequence", RequireAll: boolean, KeybindSettings: {TimeWindow: number, ClickCount: number?}?) -> (Keybind),
+    CreateKeybind: (KeybindName: string, KeybindType: KeybindTypes, RequireAll: boolean, KeybindSettings: {TimeWindow: number, ClickCount: number?}?) -> (Keybind),
     GetKeybind: (KeybindName: string) -> (Keybind),
     EnableAll: () -> (),
     DisableAll: () ->()
 }
 
 
-
+export type SignalArgs = {
+	SignalName: string,
+	Signal: RBXScriptSignal,
+	Behavior: "PressAll" | TableEnums,
+	InputState: "Began" | "End",
+	Platform: "Keyboard" | "Console"
+}
 
 export type ConstructTable = {
     Keyboard: TableEnums?,
     Console: TableEnums?,
-    CustomSignals: {
-        {
-            SignalName: string,
-            Signal: RBXScriptSignal,
-            Behavior: "PressAll" | TableEnums,
-            InputState: "Began" | "Ended",
-            Playform: "Keyboard" | "Console"
-        }
-    }?,
+    CustomSignals: {SignalArgs}?,
     Callbacks: {
-        ["Triggered" | "InputBegan" | "InputEnded"]: (KeyPressed: InputObject, ...any) -> ()
+        [EventTypes]: (KeyPressed: InputObject, ...any) -> ()
     }
 }
 

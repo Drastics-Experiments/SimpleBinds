@@ -1,5 +1,8 @@
-local Signal = require(script.Parent.Signal).new
+local Signal = require(script.Parent.Signal)
+local NewSignal = Signal.new
 local Types = require(script.Parent.Types)
+
+local function f()end
 
 return function()
     return {
@@ -13,9 +16,9 @@ return function()
         },
         Signals = {
             Default = {
-                Triggered = Signal(),
-                InputBegan = Signal(),
-                InputEnded = Signal()
+				Triggered = NewSignal(),
+				InputBegan = NewSignal(),
+				InputEnded = NewSignal()
             },
             Custom = {}
         },
@@ -23,7 +26,12 @@ return function()
             PressedKeys = {
                 Keyboard = {},
                 Console = {},
-            }
-        }
+			},
+			CurrentTimeDuration = 0,
+			Connection = Signal.Wrap(game:GetService("RunService").Heartbeat),
+			Func = f
+		},
+		KeybindConfig = {},
+		_OverrideOtherContextActions = false
     }
 end
