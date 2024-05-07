@@ -89,7 +89,7 @@ export type Methods = {
 	CreateConnection: (self: Keybind, SignalName: string) -> (Keybind),
 	DisconnectSignal: (self: Keybind, SignalType: EventTypes) -> (Keybind),
 	Once: (self: Keybind, SignalType: EventTypes, Func: (InputObject, ...any) -> ()) -> (Keybind),
-	Connect: (self: Keybind, SignalType: EventTypes, Func: (InputObject, ...any) -> ()) -> (Keybind),
+	Connect: (self: Keybind, SignalType: string, Func: (InputObject, ...any) -> ()) -> (Keybind),
 	SetPlatformBinds: (self: Keybind, Platform: "Keyboard" | "Console", NewBinds: TableEnums) -> (Keybind),
 	AddCustomLogic: (self: Keybind, Func: (Bind: PrivateKeybind, BindName: string, InputState: Enum.UserInputState, Key: any) -> (boolean)) -> (Keybind),
 	WrapSignal: (self: Keybind, SignalName: string, Signal: RBXScriptSignal, Behavior: "PressAll" | TableEnums, InputState: "Begin" | "End", Platform: "Keyboard" | "Console") -> (Keybind),
@@ -124,6 +124,8 @@ export type ConstructTable = {
     Keyboard: TableEnums?,
     Console: TableEnums?,
     CustomSignals: {SignalArgs}?,
+    CustomArgs: {any}?,
+    CustomLogic: () -> (),
     Callbacks: {
         [EventTypes]: (KeyPressed: InputObject, ...any) -> ()
     }

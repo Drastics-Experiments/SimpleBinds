@@ -185,12 +185,13 @@ function Methods.WrapSignal(self: Types.Keybind, SignalName: string, Signal: RBX
         InputState = InputState,
         Platform = Platform
 	}
-	self:CreateConnection(SignalName)
+	self:Connect(SignalName)
 
     return self
 end
 
-function Methods.CreateConnection(self: Types.Keybind, SignalName: string)
+-- // deprecated, removing soon
+function Methods._CreateConnection(self: Types.PrivateKeybind, SignalName: string)
 	local Signal = self.Signals.Custom[SignalName]
 	Signal.Signal:Connect(function()
 		if Signal.Behavior == "PressAll" then
@@ -210,11 +211,35 @@ function Methods.CreateConnection(self: Types.Keybind, SignalName: string)
 	return self
 end
 
-function Methods.Connect(self: Types.Keybind, SignalType: Types.EventTypes, Func: (InputObject, ...any) -> ())
-	local Default = self.Signals.Default
-	assert(Default[SignalType], "Invalid Signal Name")
-	Default[SignalType]:Connect(Func)
-	return self
+function Methods.Connect(self: Types.Keybind, SignalType: string, Func: (InputObject, ...any) -> ()?)
+	local Signals = self.Signals
+	local DefaultSearch = Signals.Default[SignalType]
+	
+	if DefaultSearch then
+		assert(Func, "Must provide a function")
+		DefaultSearch:Connect(Func)
+		return self
+	end
+
+	-- not intended for public use but it will still work lol
+	local CustomSearch = Signals.Custom[SignalType]
+	if CustomSearch then
+		local Settings = self.Settings 
+		local Name = Settings.Name
+		local Binds = Settings.BindedKeys[CustomSearch.Signal]
+		local Platform = CustomSearch.Platform
+		local NewState = STATES[CustomSearch.InputState]
+
+		CustomSearch.Signal:Connect(function()
+			for i,v in (CustomSearch.Behavior == "PressAll" and Binds) or CustomSearch.Behavior do
+				WhenKeyStatusChanges(`{Name}_{Platform}`, NewState, v)
+			end
+		end)
+
+		return self
+	end
+
+	error("Invalid Signal Name")
 end
 
 function Methods.Once(self: Types.Keybind, SignalType: Types.EventTypes, Func: (InputObject, ...any) -> ())
@@ -264,10 +289,18 @@ function Methods.Construct(self: Types.Keybind, InfoTable: Types.ConstructTable)
 	if InfoTable.CustomSignals then
 		for _, SignalArgs: Types.SignalArgs in InfoTable.CustomSignals do
 			self:WrapSignal(SignalArgs.SignalName, SignalArgs.Signal, SignalArgs.Behavior, STATES[SignalArgs.InputState], SignalArgs.Platform)
-			self:CreateConnection(SignalArgs.SignalName)
+			self:Connect(SignalArgs.SignalName)
 		end
 	end
+
+	if InfoTable.CustomArgs then
+		self:SetSignalArgs(InfoTable.CustomArgs)
+	end
 	
+	if InfoTable.CustomLogic then
+		self:AddCustomLogic(InfoTable.CustomLogic)
+	end
+
 	for SignalType: Types.EventTypes, Callback: (InputObject, ...any) -> () in InfoTable.Callbacks do
 		self:Connect(SignalType, Callback)
 	end
@@ -442,7 +475,23 @@ end
 function MultipleTaps(Bind: Types.PrivateKeybind, BindName, InputState, Key)
     local ObjectName, Platform = ProcessBind(BindName)
     local Settings, BehaviorVars = BindVars(Bind)
+	local AmountNeeded = #Settings.BindedKeys[Platform]
+	local AmountPressed = Bind:_GetAmountPressed(Platform)
+	local AllPressed = Bind:_AreEnoughKeysPressed(Platform)
 
+	if not BehaviorVars.ClickCount then BehaviorVars.ClickCount = 0 end
+	BehaviorVars.LastKeyCheck = if BehaviorVars.LastKeyCheck ~= nil then BehaviorVars.LastKeyCheck else true
+	if AmountPressed == 0 then BehaviorVars.LastKeyCheck = true end
+
+	if AllPressed and BehaviorVars.LastKeyCheck then
+		if os.clock() - BehaviorVars.CurrentTimeDuration > Settings.KeybindConfig.TimeWindow then
+			BehaviorVars.ClickCount = 0
+		end
+
+		BehaviorVars.CurrentTimeDuration = os.clock()
+		BehaviorVars.LastKeyCheck = false
+		BehaviorVars.ClickCount += 1
+	end
 end
 
 function StrictSequence()
