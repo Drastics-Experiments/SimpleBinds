@@ -1,12 +1,14 @@
 --!strict
+
+-- // SimpleBinds: Rewrite 3
 -- // WIP OSS MODULE BY daz_. ON DISCORD
 
 --[[
     TODO:
     
     // Internal logic/code
-    MultipleTaps, StrictSequence
-    Ensure all logic works correctly (DONE)
+    MultipleTaps (DONE), StrictSequence
+    Ensure all new logic works correctly (MultipleTaps, StrictSequence, :Destroy())
     Change all debugging warns to errors (DONE)
 
     // Methods
@@ -18,6 +20,7 @@
     Add more debugging errors/warns (DONE)
     Fix any typechecking mistakes (DONE)
     Optimize (WIP)
+	Remove bad code
 ]]
 
 local ContextActionService = game:GetService("ContextActionService")
@@ -47,8 +50,6 @@ end
 
 -- // Constructor
 
-
-
 function SimpleBinds.CreateKeybind(Args: Types.CreationArgs)
     local self = setmetatable(DefaultData(), Methods)
     local Settings = self.Settings
@@ -77,13 +78,11 @@ end
 -- // QOL
 
 function SimpleBinds.EnableAll()
-	print(_Binds)
     for i,v in _Binds do
         if v.Settings.Enabled then continue end
 		v:Enable()
-		print(v)
 	end
-	print(_Binds)
+	print("SimpleBinds Debugger: Enabled all Keybinds")
 end
 
 function SimpleBinds.DisableAll()
@@ -91,6 +90,7 @@ function SimpleBinds.DisableAll()
         if not v.Settings.Enabled then continue end
         v:Disable()
     end
+	print("SimpleBinds Debugger: Disabled all Keybinds")
 end
 
 -- // Methods
@@ -139,7 +139,7 @@ function Methods.Disable(self: Types.Keybind)
     return self
 end
 
-function Methods.Destroy(self)
+function Methods.Destroy(self: Types.Keybind)
 	local Settings, BehaviorVars = BindVars(self)
 	local Signals = self.Signals
 
@@ -185,8 +185,8 @@ function Methods.WrapSignal(self: Types.Keybind, SignalName: string, Signal: RBX
         InputState = InputState,
         Platform = Platform
 	}
-	self:Connect(SignalName)
 
+	self:Connect(SignalName)
     return self
 end
 
@@ -392,12 +392,12 @@ function WhenKeyStatusChanges(BindName: string, InputState: Enum.UserInputState,
     local ObjectName, Platform = ProcessBind(BindName)
     local Bind = SimpleBinds.GetKeybind(ObjectName)
 	if not Bind:_PerformCustomLogic(BindName, InputState, Key) then return end
+
     local PressedKeys = Bind.BehaviorVars.PressedKeys[Platform]
     local State = InputState == STATES.Begin
 	local t = typeof(Key)
 	
 	if t == "EnumItem" then
-		print(Key, Bind)
 		if State then
 			PressedKeys[Key] = State
 		else
@@ -473,6 +473,8 @@ function Toggle(Bind: Types.PrivateKeybind, BindName, InputState, Key)
 end
 
 function MultipleTaps(Bind: Types.PrivateKeybind, BindName, InputState, Key)
+	assert(Bind.Settings.RequireAll, "RequireAll must be true if using MultipleTaps")
+	if InputState ~= STATES.Began then return end
     local ObjectName, Platform = ProcessBind(BindName)
     local Settings, BehaviorVars = BindVars(Bind)
 	local AmountNeeded = #Settings.BindedKeys[Platform]
@@ -488,13 +490,19 @@ function MultipleTaps(Bind: Types.PrivateKeybind, BindName, InputState, Key)
 			BehaviorVars.ClickCount = 0
 		end
 
+		Bind:_FireSignal("InputBegan", Key)
 		BehaviorVars.CurrentTimeDuration = os.clock()
 		BehaviorVars.LastKeyCheck = false
 		BehaviorVars.ClickCount += 1
+
+		if  BehaviorVars.ClickCount >= AmountNeeded then
+			BehaviorVars.ClickCount = 0
+			Bind:_FireSignal("Triggered", Key)
+		end
 	end
 end
 
-function StrictSequence()
+function StrictSequence(Bind: Types.PrivateKeybind, BindName, InputState, Key)
     
 end
 
